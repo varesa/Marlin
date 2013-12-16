@@ -150,6 +150,21 @@
   #define EXTRUDERS 1
 #endif
 
+// Same again but for Y Axis.
+//#define Y_DUAL_STEPPER_DRIVERS
+
+// Define if the two Y drives need to rotate in opposite directions
+#define INVERT_Y2_VS_Y_DIR true
+
+#ifdef Y_DUAL_STEPPER_DRIVERS
+  #undef EXTRUDERS
+  #define EXTRUDERS 1
+#endif
+
+#if defined (Z_DUAL_STEPPER_DRIVERS) && defined (Y_DUAL_STEPPER_DRIVERS)
+  #error "You cannot have dual drivers for both Y and Z"
+#endif
+
 // Enable this for dual x-carriage printers. 
 // A dual x-carriage design has the advantage that the inactive extruder can be parked which
 // prevents hot-end ooze contaminating the print. It also reduces the weight of each x-carriage
@@ -350,6 +365,9 @@ const unsigned int dropsegments=5; //everything with less than this number of st
   #define PS_ON_ASLEEP LOW
 #endif
 
+// Control heater 0 and heater 1 in parallel.
+//#define HEATERS_PARALLEL
+
 //===========================================================================
 //=============================Buffers           ============================
 //===========================================================================
@@ -401,6 +419,10 @@ const unsigned int dropsegments=5; //everything with less than this number of st
 //===========================================================================
 #if EXTRUDERS > 1 && defined TEMP_SENSOR_1_AS_REDUNDANT
   #error "You cannot use TEMP_SENSOR_1_AS_REDUNDANT if EXTRUDERS > 1"
+#endif
+
+#if EXTRUDERS > 1 && defined HEATERS_PARALLEL
+  #error "You cannot use HEATERS_PARALLEL if EXTRUDERS > 1"
 #endif
 
 #if TEMP_SENSOR_0 > 0

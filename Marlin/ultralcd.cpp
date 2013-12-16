@@ -19,7 +19,10 @@ int absPreheatHotendTemp;
 int absPreheatHPBTemp;
 int absPreheatFanSpeed;
 
+#ifdef ULTIPANEL
 static float manual_feedrate[] = MANUAL_FEEDRATE;
+#endif // ULTIPANEL
+
 /* !Configuration settings */
 
 //Function pointer to menu functions.
@@ -104,6 +107,7 @@ static void menu_action_setting_edit_callback_long5(const char* pstr, unsigned l
     if (encoderPosition > 0x8000) encoderPosition = 0; \
     if (encoderPosition / ENCODER_STEPS_PER_MENU_ITEM < currentMenuViewOffset) currentMenuViewOffset = encoderPosition / ENCODER_STEPS_PER_MENU_ITEM;\
     uint8_t _lineNr = currentMenuViewOffset, _menuItemNr; \
+    bool wasClicked = LCD_CLICKED;\
     for(uint8_t _drawLineNr = 0; _drawLineNr < LCD_HEIGHT; _drawLineNr++, _lineNr++) { \
         _menuItemNr = 0;
 #define MENU_ITEM(type, label, args...) do { \
@@ -138,11 +142,13 @@ volatile uint8_t buttons;//Contains the bits of the currently pressed buttons.
 #else
 volatile uint8_t buttons_reprapworld_keypad; // to store the reprapworld_keypad shiftregister values
 #endif
+#ifdef LCD_HAS_SLOW_BUTTONS
+volatile uint8_t slow_buttons;//Contains the bits of the currently pressed buttons.
+#endif
 uint8_t currentMenuViewOffset;              /* scroll offset in the current menu */
 uint32_t blocking_enc;
 uint8_t lastEncoderBits;
 uint32_t encoderPosition;
-bool wasClicked;
 #if (SDCARDDETECT > 0)
 bool lcd_oldcardstatus;
 #endif
@@ -992,18 +998,27 @@ void lcd_init()
     WRITE(SHIFT_LD,HIGH);
   #endif
 #else
-    pinMode(SHIFT_CLK,OUTPUT);
-    pinMode(SHIFT_LD,OUTPUT);
-    pinMode(SHIFT_EN,OUTPUT);
-    pinMode(SHIFT_OUT,INPUT);
-    WRITE(SHIFT_OUT,HIGH);
-    WRITE(SHIFT_LD,HIGH); 
-    WRITE(SHIFT_EN,LOW);
+  #ifdef SR_LCD_2W_NL
+     pinMode (SR_DATA_PIN, OUTPUT);
+     pinMode (SR_CLK_PIN, OUTPUT);
+  #else
+     pinMode(SHIFT_CLK,OUTPUT);
+     pinMode(SHIFT_LD,OUTPUT);
+     pinMode(SHIFT_EN,OUTPUT);
+     pinMode(SHIFT_OUT,INPUT);
+     WRITE(SHIFT_OUT,HIGH);
+     WRITE(SHIFT_LD,HIGH); 
+     WRITE(SHIFT_EN,LOW);
+   #endif // SR_LCD_2W_NL    
 #endif//!NEWPANEL
+
 #if (SDCARDDETECT > 0)
     WRITE(SDCARDDETECT, HIGH);
     lcd_oldcardstatus = IS_SD_INSERTED;
 #endif//(SDCARDDETECT > 0)
+    #ifdef LCD_HAS_SLOW_BUTTONS
+    slow_buttons = 0;
+    #endif
     lcd_buttons_update();
 #ifdef ULTIPANEL    
     encoderDiff = 0;
@@ -1014,11 +1029,11 @@ void lcd_update()
 {
     static unsigned long timeoutToStatus = 0;
     
-    lcd_buttons_update();
-    
     #ifdef LCD_HAS_SLOW_BUTTONS
-    buttons |= lcd_implementation_read_slow_buttons(); // buttons which take too long to read in interrupt context
+    slow_buttons = lcd_implementation_read_slow_buttons(); // buttons which take too long to read in interrupt context
     #endif
+    
+    lcd_buttons_update();
     
     #if (SDCARDDETECT > 0)
     if((IS_SD_INSERTED != lcd_oldcardstatus))
@@ -1042,7 +1057,6 @@ void lcd_update()
     
     if (lcd_next_update_millis < millis())
     {
-      wasClicked = LCD_CLICKED;
 #ifdef ULTIPANEL
 		#ifdef REPRAPWORLD_KEYPAD
         	if (REPRAPWORLD_KEYPAD_MOVE_Z_UP) {
@@ -1162,6 +1176,9 @@ void lcd_buttons_update()
         newbutton |= EN_C;
   #endif
     buttons = newbutton;
+    #ifdef LCD_HAS_SLOW_BUTTONS
+    buttons |= slow_buttons;
+    #endif
     #ifdef REPRAPWORLD_KEYPAD
       // for the reprapworld_keypad
       uint8_t newbutton_reprapworld_keypad=0;
